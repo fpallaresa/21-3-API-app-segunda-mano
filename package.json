@@ -1,0 +1,43 @@
+{
+  "name": "21_3-API-app-segunda-mano",
+  "version": "1.0.0",
+  "description": "API app segunda mano",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --watch index.js",
+    "seed:user": "node ./seeds/user.seed.js",
+    "seed:product": "node ./seeds/product.seed.js",
+    "seed:chat": "node ./seeds/chat.seed.js",
+    "seed:product-user-relations": "node ./seeds/product-user-relations.seed.js",
+    "seed:all": "npm run seed:user && npm run seed:product && npm run seed:chat && npm run seed:product-relations",
+    "prepare": "husky install",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "api",
+    "app",
+    "second-hand"
+  ],
+  "author": "francesc pallares",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-promise": "^6.1.1",
+    "husky": "^8.0.0"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^8.4.1",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.2.3",
+    "multer": "^1.4.5-lts.1",
+    "validator": "^13.11.0"
+  }
+}

@@ -5,41 +5,41 @@ const chatSchema = new Schema(
   {
     product: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      unique: true,
-      required: false,
+      ref: "User",
+      required: true,
     },
-    buyer: {
+    user1: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: false,
+      required: true,
     },
-    buyerMessages: [
+    user2: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    messages: [
       {
+        sender: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        receiver: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
         content: {
           type: String,
           required: true,
-          maxLength: [200, "El mensaje no puede contener más de 200 caracteres"],
         },
-        timestamp: {
+        date: {
           type: Date,
-          required: true,
-        },
-      },
-    ],
-    ownerMessages: [
-      {
-        content: {
-          type: String,
-          required: true,
-          maxLength: [200, "El mensaje no puede contener más de 200 caracteres"],
-        },
-        timestamp: {
-          type: Date,
-          required: true,
-        },
-      },
-    ],
+          default: new Date(),      
+        }
+      }
+    ]
   },
   {
     timestamps: true,

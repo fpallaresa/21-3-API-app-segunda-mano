@@ -22,22 +22,24 @@ const userSchema = new Schema(
       minLength: [8, "La contraseña debe tener al menos 8 caracteres"],
       select: false,
     },
-    name: {
+    firstName: {
       type: String,
       required: true,
       trim: true,
       minLength: 3,
       maxLength: 50,
     },
-    favoriteProducts: [
-      {
-        productId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-          required: false,
-        },
-      },
-    ],
+    lastName: {
+      type: String,
+      required: true,
+      trim: true,
+      minLength: 3,
+      maxLength: 50,
+    },
+    phone: {
+      type: Number,
+      required: true,
+    },
   },
   {
     timestamps: true,

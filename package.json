@@ -6,11 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node --watch index.js",
-    "seed:user": "node ./seeds/user.seed.js",
-    "seed:product": "node ./seeds/product.seed.js",
-    "seed:chat": "node ./seeds/chat.seed.js",
-    "seed:product-user-relations": "node ./seeds/product-user-relations.seed.js",
-    "seed:all": "npm run seed:user && npm run seed:product && npm run seed:chat && npm run seed:product-relations",
+    "seed:relations": "node ./seeds/relations.seed.js",
     "prepare": "husky install",
     "lint": "eslint ."
   },

@@ -1,7 +1,6 @@
 const { userRouter } = require("./routes/user.routes.js");
-const { carRouter } = require("./routes/car.routes.js");
-const { brandRouter } = require("./routes/brand.routes.js");
-const { fileUploadRouter } = require("./routes/file-upload.routes.js");
+// const { productRouter } = require("./routes/product.routes.js");
+// const { chatRouter } = require("./routes/chat.routes.js");
 const express = require("express");
 const cors = require("cors");
 
@@ -37,18 +36,17 @@ const main = async () => {
     next();
   });
 
-  // Acepta /car/*
-  app.use("/car", (req, res, next) => {
-    console.log("Me han pedido coches!!");
+  // Acepta /product/*
+  app.use("/product", (req, res, next) => {
+    console.log("Me han pedido productos!!");
     next();
   });
 
   // Usamos las rutas
   app.use("/user", userRouter);
-  app.use("/car", carRouter);
-  app.use("/brand", brandRouter);
+  // app.use("/product", productRouter);
+  // app.use("/chat", chatRouter);
   app.use("/public", express.static("public"));
-  app.use("/file-upload", fileUploadRouter);
   app.use("/", router);
 
   // Middleware de gestión de errores

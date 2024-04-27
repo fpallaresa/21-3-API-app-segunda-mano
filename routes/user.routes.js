@@ -4,7 +4,7 @@ const { generateToken } = require("../utils/token");
 
 // Modelos
 const { User } = require("../models/User.js");
-const { Car } = require("../models/Car.js");
+const { Product } = require("../models/Product.js");
 const { isAuth } = require("../middlewares/auth.middleware.js");
 
 // Router propio de usuarios
@@ -46,10 +46,10 @@ router.get("/:id", async (req, res, next) => {
 
     if (user) {
       const temporalUser = user.toObject();
-      const includeCars = req.query.includeCars === "true";
-      if (includeCars) {
-        const cars = await Car.find({ owner: id });
-        temporalUser.cars = cars;
+      const includeProducts = req.query.includeProducts === "true";
+      if (includeProducts) {
+        const products = await Product.find({ owner: id });
+        temporalUser.products = products;
       }
 
       res.json(temporalUser);
@@ -77,7 +77,6 @@ router.get("/name/:name", async (req, res, next) => {
   }
 });
 
-// Endpoint de creación de usuarios
 // CRUD: CREATE
 router.post("/", async (req, res, next) => {
   try {
@@ -89,7 +88,6 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-// Para elimnar usuarios
 // CRUD: DELETE
 router.delete("/:id", isAuth, async (req, res, next) => {
   try {

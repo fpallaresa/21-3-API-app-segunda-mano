@@ -1,28 +1,49 @@
 const express = require("express");
 
 // Modelos
-const { Brand } = require("../models/Brand.js");
+const { Chat } = require("../models/Chat.js");
 
 const router = express.Router();
 
 // CRUD: READ
 router.get("/", async (req, res, next) => {
   try {
-    // Asi leemos query params
+    console.log("Estamos en el middleware /chat que comprueba parámetros");
+
     const page = req.query.page ? parseInt(req.query.page) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-    const brands = await Brand.find()
+
+    if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
+      req.query.page = page;
+      req.query.limit = limit;
+      next();
+    } else {
+      console.log("Parámetros no válidos:");
+      console.log(JSON.stringify(req.query));
+      res.status(400).json({ error: "Params page or limit are not valid" });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/", async (req, res, next) => {
+  try {
+    // Asi leemos query params
+    const { page, limit } = req.query;
+    const chats = await Chat.find()
       .limit(limit)
-      .skip((page - 1) * limit);
+      .skip((page - 1) * limit)
+      .populate ([{path:"user1"}, {path:"user2"}]);
 
     // Num total de elementos
-    const totalElements = await Brand.countDocuments();
+    const totalElements = await Chat.countDocuments();
 
     const response = {
       totalItems: totalElements,
       totalPages: Math.ceil(totalElements / limit),
       currentPage: page,
-      data: brands,
+      data: chats,
     };
 
     res.json(response);
@@ -35,27 +56,11 @@ router.get("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const brand = await Brand.findById(id);
-    if (brand) {
-      res.json(brand);
+    const chat = await Chat.findById(id).populate(["user1", "user2"]);
+    if (chat) {
+      res.json(chat);
     } else {
       res.status(404).json({});
-    }
-  } catch (error) {
-    next(error);
-  }
-});
-
-// CRUD: Operación custom, no es CRUD
-router.get("/name/:name", async (req, res, next) => {
-  const brandName = req.params.name;
-
-  try {
-    const brand = await Brand.find({ name: new RegExp("^" + brandName.toLowerCase(), "i") });
-    if (brand?.length) {
-      res.json(brand);
-    } else {
-      res.status(404).json([]);
     }
   } catch (error) {
     next(error);
@@ -65,9 +70,9 @@ router.get("/name/:name", async (req, res, next) => {
 // CRUD: CREATE
 router.post("/", async (req, res, next) => {
   try {
-    const brand = new Brand(req.body);
-    const createdBrand = await brand.save();
-    return res.status(201).json(createdBrand);
+    const chat = new Chat(req.body);
+    const createdChat = await chat.save();
+    return res.status(201).json(createdChat);
   } catch (error) {
     next(error);
   }
@@ -77,9 +82,9 @@ router.post("/", async (req, res, next) => {
 router.delete("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const brandDeleted = await Brand.findByIdAndDelete(id);
-    if (brandDeleted) {
-      res.json(brandDeleted);
+    const chatDeleted = await Chat.findByIdAndDelete(id);
+    if (chatDeleted) {
+      res.json(chatDeleted);
     } else {
       res.status(404).json({});
     }
@@ -92,9 +97,9 @@ router.delete("/:id", async (req, res, next) => {
 router.put("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const brandUpdated = await Brand.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
-    if (brandUpdated) {
-      res.json(brandUpdated);
+    const chatUpdated = await Chat.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    if (chatUpdated) {
+      res.json(chatUpdated);
     } else {
       res.status(404).json({});
     }
@@ -103,4 +108,4 @@ router.put("/:id", async (req, res, next) => {
   }
 });
 
-module.exports = { brandRouter: router };
+module.exports = { chatRouter: router };

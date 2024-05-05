@@ -61,22 +61,6 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-// CRUD: Operación custom, no es CRUD
-router.get("/name/:name", async (req, res, next) => {
-  const name = req.params.name;
-
-  try {
-    const user = await User.find({ firstName: new RegExp("^" + name.toLowerCase(), "i") });
-    if (user?.length) {
-      res.json(user);
-    } else {
-      res.status(404).json([]);
-    }
-  } catch (error) {
-    next(error);
-  }
-});
-
 // CRUD: CREATE
 router.post("/", async (req, res, next) => {
   try {
@@ -95,6 +79,19 @@ router.delete("/:id", isAuth, async (req, res, next) => {
 
     if (req.user.id !== id && req.user.email !== "admin@gmail.com") {
       return res.status(401).json({ error: "No tienes autorización para realizar esta operación" });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const hasSales = await Sale.exists ({ $or: [{ buyer: id }, { seller: id } ]})
+    const hasProducts = await Product.exists({ owner: id});
+
+    if (hasSales || hasProducts) {
+      return resres.status(403).json({ error: "No se puede eliminar un usuario con ventas o productos" });
     }
 
     const userDeleted = await User.findByIdAndDelete(id);
@@ -136,8 +133,6 @@ router.put("/:id", isAuth, async (req, res, next) => {
 // LOGIN DE USUARIOS
 router.post("/login", async (req, res, next) => {
   try {
-    // const email = req.body.email;
-    // const password = req.body.password;
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -146,8 +141,6 @@ router.post("/login", async (req, res, next) => {
 
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
-      // return res.status(404).json({ error: "No existe un usuario con ese email" });
-      // Por seguridad mejor no indicar qué usuarios no existen
       return res.status(401).json({ error: "Email y/o contraseña incorrectos" });
     }
 

@@ -9,8 +9,8 @@ const generateToken = (id, email) => {
   }
 
   const payload = {
-    authorId: id,
-    authorEmail: email,
+    userId: id,
+    userEmail: email,
   };
 
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1d" });

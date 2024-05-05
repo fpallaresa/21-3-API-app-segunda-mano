@@ -2,17 +2,20 @@ const express = require("express");
 const multer = require("multer");
 const upload = multer({ dest: "public" });
 const fs = require("fs");
+const { isAuth } = require("../middlewares/auth.middleware.js");
 
 // Modelos
-const { Car } = require("../models/Car.js");
+const { Product } = require("../models/Product.js");
+const { Chat } = require("../models/Chat.js");
+const { Sale } = require("../models/Sale.js");
 
-// Router propio de usuarios
+// Router propio de productos
 const router = express.Router();
 
 // CRUD: READ
 router.get("/", (req, res, next) => {
   try {
-    console.log("Estamos en el middleware /car que comprueba parámetros");
+    console.log("Estamos en el middleware /product que comprueba parámetros");
 
     const page = req.query.page ? parseInt(req.query.page) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
@@ -35,19 +38,19 @@ router.get("/", async (req, res, next) => {
   try {
     // Asi leemos query params
     const { page, limit } = req.query;
-    const cars = await Car.find()
+    const products = await Product.find()
       .limit(limit)
       .skip((page - 1) * limit)
-      .populate(["owner", "brand"]);
+      .populate(["owner"]);
 
     // Num total de elementos
-    const totalElements = await Car.countDocuments();
+    const totalElements = await Product.countDocuments();
 
     const response = {
       totalItems: totalElements,
       totalPages: Math.ceil(totalElements / limit),
       currentPage: page,
-      data: cars,
+      data: products,
     };
 
     res.json(response);
@@ -60,9 +63,9 @@ router.get("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const car = await Car.findById(id).populate(["owner", "brand"]);
-    if (car) {
-      res.json(car);
+    const product = await Product.findById(id).populate(["owner"]);
+    if (product) {
+      res.json(product);
     } else {
       res.status(404).json({});
     }
@@ -71,44 +74,49 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-// CRUD: Operación custom, no es CRUD
-router.get("/brand/:brand", async (req, res, next) => {
-  const brand = req.params.brand;
-
-  try {
-    const car = await Car.find({ brand: new RegExp("^" + brand.toLowerCase(), "i") }).populate(["owner", "brand"]);
-    if (car?.length) {
-      res.json(car);
-    } else {
-      res.status(404).json([]);
-    }
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Endpoint de creación de usuarios
 // CRUD: CREATE
-router.post("/", async (req, res, next) => {
+router.post("/", isAuth, async (req, res, next) => {
   try {
-    const car = new Car(req.body);
-    const createdCar = await car.save();
-    return res.status(201).json(createdCar);
+    const product = new Product(req.body);
+
+    // Verificar si el usuario autenticado es el propietario del producto
+    if (req.user.id !== product.owner.toString()) {
+      return res.status(401).json({ error: "You are not authorized to perform this operation" });
+    }
+
+    const createdProduct = await product.save();
+    return res.status(201).json(createdProduct);
   } catch (error) {
     next(error);
   }
 });
 
-// Para elimnar coches
 // CRUD: DELETE
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", isAuth, async (req, res, next) => {
   try {
-    const id = req.params.id;
-    const carDeleted = await Car.findByIdAndDelete(id);
-    if (carDeleted) {
-      res.json(carDeleted);
+    const productId = req.params.id;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    if (req.user.id !== product.owner.toString()) {
+      return res.status(401).json({ error: "You are not authorized to perform this operation" });
+    }
+
+    // Verificar si el producto tiene conversaciones o ventas asociadas
+    const hasChats = await Chat.exists({ product: productId });
+    const hasSales = await Sale.exists({ product: productId });
+    if (hasChats || hasSales) {
+      return res.status(403).json({ error: "Cannot delete the product. It has associated chats or sales" });
+    }
+
+    const deletedProduct = await Product.findByIdAndDelete(productId);
+    if (deletedProduct) {
+      res.json(deletedProduct);
     } else {
-      res.status(404).json({});
+      res.status(404).json({ error: "Product not found" });
     }
   } catch (error) {
     next(error);
@@ -116,21 +124,36 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 // CRUD: UPDATE
-router.put("/:id", async (req, res, next) => {
+router.put("/:id", isAuth , async (req, res, next) => {
+
   try {
     const id = req.params.id;
-    const carUpdated = await Car.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
-    if (carUpdated) {
-      res.json(carUpdated);
+    const productUpdated = await Product.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+
+    // Verificar si el producto tiene asociada una venta
+    const saleExists = await Sale.exists({ product: id});
+    if (saleExists) {
+      res.status(403).json({ error: "Cannot update the product. It has an associated sale." });
+    }
+
+    if (productUpdated) {
+      // Verificar si el usuario autenticado es el propietario del producto
+      if (req.user.id !== productUpdated.owner.toString()) {
+        res.status(401).json({ error: "You are not authorized to perform this operation" });
+      }
+
+      Object.assign(productUpdated, req.body);
+      await productUpdated.save();
+      res.json(productUpdated);
     } else {
-      res.status(404).json({});
+      res.status(404).json({ error: "Product not found" });
     }
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/logo-upload", upload.single("logo"), async (req, res, next) => {
+router.post("/image-upload", isAuth, upload.single("image"), async (req, res, next) => {
   try {
     // Renombrado de la imagen
     const originalname = req.file.originalname;
@@ -138,23 +161,29 @@ router.post("/logo-upload", upload.single("logo"), async (req, res, next) => {
     const newPath = path + "_" + originalname;
     fs.renameSync(path, newPath);
 
-    // Busqueda de la marca
-    const brandId = req.body.brandId;
-    const brand = await Brand.findById(brandId);
+    // Busqueda del producto
+    const productId = req.body.productId;
+    const product = await Product.findById(productId);
 
-    if (brand) {
-      brand.logoImage = newPath;
-      await brand.save();
-      res.json(brand);
-
-      console.log("Marca modificada correctamente!");
-    } else {
+    if (!product) {
       fs.unlinkSync(newPath);
-      res.status(404).send("Marca no encontrada");
+      return req.status(404).send("Product not found");
     }
+
+    // Verificar si el producto está vendido
+    if (product.sold) {
+      fs.unlinkSync(newPath);
+      return req.status(403).send("Cannot add images to a sold product");
+    }
+
+    product.images.push(newPath);
+    await product.save();
+    res.json(product);
+
+    console.log("Product saved!");
   } catch (error) {
     next(error);
   }
 });
 
-module.exports = { carRouter: router };
+module.exports = { productRouter: router };

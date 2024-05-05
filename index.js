@@ -1,6 +1,7 @@
 const { userRouter } = require("./routes/user.routes.js");
-// const { productRouter } = require("./routes/product.routes.js");
-// const { chatRouter } = require("./routes/chat.routes.js");
+const { productRouter } = require("./routes/product.routes.js");
+const { chatRouter } = require("./routes/chat.routes.js");
+const { saleRouter } = require("./routes/sale.routes.js");
 const express = require("express");
 const cors = require("cors");
 
@@ -44,8 +45,9 @@ const main = async () => {
 
   // Usamos las rutas
   app.use("/user", userRouter);
-  // app.use("/product", productRouter);
-  // app.use("/chat", chatRouter);
+  app.use("/product", productRouter);
+  app.use("/chat", chatRouter);
+  app.use("/sale", saleRouter);
   app.use("/public", express.static("public"));
   app.use("/", router);
 

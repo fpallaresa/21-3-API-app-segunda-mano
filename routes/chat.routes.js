@@ -2,41 +2,21 @@ const express = require("express");
 
 // Modelos
 const { Chat } = require("../models/Chat.js");
+const { isAuth } = require("../middlewares/auth.middleware.js");
 
+// Router propio de usuarios
 const router = express.Router();
 
 // CRUD: READ
 router.get("/", async (req, res, next) => {
   try {
-    console.log("Estamos en el middleware /chat que comprueba parámetros");
-
     const page = req.query.page ? parseInt(req.query.page) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
 
-    if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
-      req.query.page = page;
-      req.query.limit = limit;
-      next();
-    } else {
-      console.log("Parámetros no válidos:");
-      console.log(JSON.stringify(req.query));
-      res.status(400).json({ error: "Params page or limit are not valid" });
-    }
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get("/", async (req, res, next) => {
-  try {
-    // Asi leemos query params
-    const { page, limit } = req.query;
     const chats = await Chat.find()
       .limit(limit)
-      .skip((page - 1) * limit)
-      .populate ([{path:"user1"}, {path:"user2"}]);
+      .skip((page - 1) * limit);
 
-    // Num total de elementos
     const totalElements = await Chat.countDocuments();
 
     const response = {
@@ -56,7 +36,8 @@ router.get("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const chat = await Chat.findById(id).populate(["user1", "user2"]);
+    const chat = await Chat.findById(id).populate(["product", "user1", "user2"]);
+
     if (chat) {
       res.json(chat);
     } else {
@@ -79,9 +60,13 @@ router.post("/", async (req, res, next) => {
 });
 
 // CRUD: DELETE
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", isAuth, async (req, res, next) => {
   try {
     const id = req.params.id;
+
+    // Puedes añadir condiciones adicionales de autorización según tus necesidades
+    // ...
+
     const chatDeleted = await Chat.findByIdAndDelete(id);
     if (chatDeleted) {
       res.json(chatDeleted);
@@ -94,12 +79,18 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 // CRUD: UPDATE
-router.put("/:id", async (req, res, next) => {
+router.put("/:id", isAuth, async (req, res, next) => {
   try {
     const id = req.params.id;
-    const chatUpdated = await Chat.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
-    if (chatUpdated) {
-      res.json(chatUpdated);
+
+    // Puedes añadir condiciones adicionales de autorización según tus necesidades
+    // ...
+
+    const chatToUpdate = await Chat.findById(id);
+    if (chatToUpdate) {
+      Object.assign(chatToUpdate, req.body);
+      await chatToUpdate.save();
+      res.json(chatToUpdate);
     } else {
       res.status(404).json({});
     }

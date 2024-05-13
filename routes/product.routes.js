@@ -1,7 +1,7 @@
 const express = require("express");
+const fs = require("fs");
 const multer = require("multer");
 const upload = multer({ dest: "public" });
-const fs = require("fs");
 const { isAuth } = require("../middlewares/auth.middleware.js");
 
 // Modelos
@@ -67,7 +67,7 @@ router.get("/:id", async (req, res, next) => {
     if (product) {
       res.json(product);
     } else {
-      res.status(404).json({});
+      res.status(404).json({ error: "Product not found" });
     }
   } catch (error) {
     next(error);
@@ -85,7 +85,7 @@ router.post("/", isAuth, async (req, res, next) => {
     }
 
     const createdProduct = await product.save();
-    return res.status(201).json(createdProduct);
+    res.status(201).json(createdProduct);
   } catch (error) {
     next(error);
   }
@@ -96,6 +96,7 @@ router.delete("/:id", isAuth, async (req, res, next) => {
   try {
     const productId = req.params.id;
 
+    // Verificar si el usuario autenticado es el propietario del producto
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
@@ -109,7 +110,7 @@ router.delete("/:id", isAuth, async (req, res, next) => {
     const hasChats = await Chat.exists({ product: productId });
     const hasSales = await Sale.exists({ product: productId });
     if (hasChats || hasSales) {
-      return res.status(403).json({ error: "Cannot delete the product. It has associated chats or sales" });
+      return res.status(403).json({ error: "Cannot delete the product. It has associated chats or sales." });
     }
 
     const deletedProduct = await Product.findByIdAndDelete(productId);
@@ -124,22 +125,21 @@ router.delete("/:id", isAuth, async (req, res, next) => {
 });
 
 // CRUD: UPDATE
-router.put("/:id", isAuth , async (req, res, next) => {
-
+router.put("/:id", isAuth, async (req, res, next) => {
   try {
     const id = req.params.id;
-    const productUpdated = await Product.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    const productUpdated = await Product.findById(id);
 
     // Verificar si el producto tiene asociada una venta
-    const saleExists = await Sale.exists({ product: id});
+    const saleExists = await Sale.exists({ product: id });
     if (saleExists) {
-      res.status(403).json({ error: "Cannot update the product. It has an associated sale." });
+      return res.status(403).json({ error: "Cannot update the product. It has an associated sale." });
     }
 
     if (productUpdated) {
       // Verificar si el usuario autenticado es el propietario del producto
       if (req.user.id !== productUpdated.owner.toString()) {
-        res.status(401).json({ error: "You are not authorized to perform this operation" });
+        return res.status(401).json({ error: "You are not authorized to perform this operation" });
       }
 
       Object.assign(productUpdated, req.body);
@@ -161,19 +161,25 @@ router.post("/image-upload", isAuth, upload.single("image"), async (req, res, ne
     const newPath = path + "_" + originalname;
     fs.renameSync(path, newPath);
 
-    // Busqueda del producto
+    // Búsqueda del producto
     const productId = req.body.productId;
     const product = await Product.findById(productId);
 
     if (!product) {
       fs.unlinkSync(newPath);
-      return req.status(404).send("Product not found");
+      return res.status(404).send("Product not found");
+    }
+
+    // Verificar si el usuario autenticado es el propietario del producto
+    if (req.user.id !== product.owner.toString()) {
+      fs.unlinkSync(newPath);
+      return res.status(401).json({ error: "You are not authorized to add images to this product" });
     }
 
     // Verificar si el producto está vendido
     if (product.sold) {
       fs.unlinkSync(newPath);
-      return req.status(403).send("Cannot add images to a sold product");
+      return res.status(403).json({ error: "Cannot add images to a sold product" });
     }
 
     product.images.push(newPath);

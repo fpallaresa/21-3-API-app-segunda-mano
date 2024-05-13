@@ -4,6 +4,7 @@ const { generateToken } = require("../utils/token");
 
 // Modelos
 const { User } = require("../models/User.js");
+const { Sale } = require("../models/Sale.js");
 const { Product } = require("../models/Product.js");
 const { isAuth } = require("../middlewares/auth.middleware.js");
 
@@ -11,7 +12,6 @@ const { isAuth } = require("../middlewares/auth.middleware.js");
 const router = express.Router();
 
 // CRUD: READ
-// EJEMPLO DE REQ: http://localhost:3000/user?page=1&limit=10
 router.get("/", async (req, res, next) => {
   try {
     // Ternario que se queda con el parametro si llega
@@ -87,11 +87,11 @@ router.delete("/:id", isAuth, async (req, res, next) => {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    const hasSales = await Sale.exists ({ $or: [{ buyer: id }, { seller: id } ]})
-    const hasProducts = await Product.exists({ owner: id});
+    const hasSales = await Sale.exists({ $or: [{ buyer: id }, { seller: id }] });
+    const hasProducts = await Product.exists({ owner: id });
 
     if (hasSales || hasProducts) {
-      return resres.status(403).json({ error: "No se puede eliminar un usuario con ventas o productos" });
+      return res.status(403).json({ error: "No se puede eliminar un usuario con ventas o productos asociados" });
     }
 
     const userDeleted = await User.findByIdAndDelete(id);

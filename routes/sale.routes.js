@@ -1,46 +1,28 @@
 const express = require("express");
-const { isAuth } = require("../middlewares/auth.middleware.js");
 
 // Modelos
-const { Product } = require("../models/Product.js");
 const { Sale } = require("../models/Sale.js");
+const { Product } = require("../models/Product.js");
 const { User } = require("../models/User.js");
+const { isAuth } = require("../middlewares/auth.middleware.js");
 
-// Router propio de productos
 const router = express.Router();
 
 // CRUD: READ
-router.get("/", (req, res, next) => {
+router.get("/", isAuth, async (req, res, next) => {
   try {
-    console.log("Estamos en el middleware /sale que comprueba parámetros");
-
     const page = req.query.page ? parseInt(req.query.page) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
 
-    if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
-      req.query.page = page;
-      req.query.limit = limit;
-      next();
-    } else {
-      console.log("Parámetros no válidos:");
-      console.log(JSON.stringify(req.query));
-      res.status(400).json({ error: "Params page or limit are not valid" });
+    if (isNaN(page) || isNaN(limit) || page <= 0 || limit <= 0) {
+      return res.status(400).json({ error: "Invalid page or limit value" });
     }
-  } catch (error) {
-    next(error);
-  }
-});
 
-router.get("/", async (req, res, next) => {
-  try {
-    // Asi leemos query params
-    const userId = req.body.id;
-    const { page, limit } = req.query;
-    const sales = await Sale.find( { $or: [{ buyer: userId }, { seller: userId }] })
+    const userId = req.user.id;
+    const sales = await Sale.find({ $or: [{ buyer: userId }, { seller: userId }] })
       .limit(limit)
-      .skip((page - 1) * limit)
+      .skip((page - 1) * limit);
 
-    // Num total de elementos
     const totalElements = await Sale.countDocuments({ $or: [{ buyer: userId }, { seller: userId }] });
 
     const response = {
@@ -60,13 +42,13 @@ router.get("/", async (req, res, next) => {
 router.get("/:id", isAuth, async (req, res, next) => {
   try {
     const id = req.params.id;
-    const userId = req.body.id;
-    const sale = await Sale.findOne({ _id: id, $or: [{ buyer: userId }, { seller: userID }] });
+    const userId = req.user.id;
+    const sale = await Sale.findOne({ _id: id, $or: [{ buyer: userId }, { seller: userId }] });
 
     if (sale) {
       res.json(sale);
     } else {
-      res.status(404).json({ error: "Sale not found"});
+      res.status(404).json({ error: "Sale not found" });
     }
   } catch (error) {
     next(error);
@@ -82,13 +64,13 @@ router.post("/", isAuth, async (req, res, next) => {
     const productExists = await Product.exists({ _id: product, owner: seller });
     const buyerExists = await User.exists({ _id: buyer });
     const previousSaleExists = await Sale.exists({ product, seller });
-    
-    if(!productExists || !buyerExists) {
-      res.status(404).json({ error: "Sale not found"});
+
+    if (!productExists || !buyerExists) {
+      return res.status(404).json({ error: "Product or buyer not found" });
     }
-    
+
     if (previousSaleExists) {
-      return res.status(409).json({ error: "Previous sale already exists" });
+      return res.status(409).json({ error: "A previous sale for this product already exists" });
     }
 
     const sale = new Sale({
@@ -118,31 +100,30 @@ router.delete("/:id", isAuth, async (req, res, next) => {
       return res.status(401).json({ error: "You are not authorized to perform this operation" });
     }
 
-    res.status(403).json({ error: "Deleting sales is not allowed" })
+    res.status(403).json({ error: "Deleting sales is not allowed" });
   } catch (error) {
     next(error);
   }
 });
 
 // CRUD: UPDATE
-router.put("/:id", isAuth , async (req, res, next) => {
-
+router.put("/:id", isAuth, async (req, res, next) => {
   try {
     const id = req.params.id;
     const sale = await Sale.findById(id);
-    
+
     if (!sale) {
-      res.status(404).json({ error: "Sale not found" });
+      return res.status(404).json({ error: "Sale not found" });
     }
 
     if (req.user.id !== sale.seller.toString()) {
       return res.status(401).json({ error: "You are not authorized to perform this operation" });
     }
 
-    // Se eliminan las propiedades "product" y "seller del cuerpo de la solicitud"
-    const { product, seller, ...updatedData} = req.body;
+    // Se eliminan las propiedades "product" y "seller" del cuerpo de la solicitud
+    const { product, seller, ...updateData } = req.body;
 
-    const updatedSale = await Sale.findByIdAndUpdate(id, updatedData, { new: true, runValidators: true });
+    const updatedSale = await Sale.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
 
     if (updatedSale) {
       res.json(updatedSale);

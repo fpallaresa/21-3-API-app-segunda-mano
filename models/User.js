@@ -3,6 +3,7 @@ const validator = require("validator");
 const bcrypt = require("bcrypt");
 const Schema = mongoose.Schema;
 
+// Creamos el schema del usuario
 const userSchema = new Schema(
   {
     email: {
@@ -12,7 +13,7 @@ const userSchema = new Schema(
       unique: true,
       validate: {
         validator: validator.isEmail,
-        message: "Email no válido",
+        message: "Email incorrecto",
       },
     },
     password: {
@@ -27,18 +28,19 @@ const userSchema = new Schema(
       required: true,
       trim: true,
       minLength: 3,
-      maxLength: 50,
+      maxLength: 45,
     },
     lastName: {
       type: String,
       required: true,
       trim: true,
       minLength: 3,
-      maxLength: 50,
+      maxLength: 45,
     },
     phone: {
-      type: Number,
-      required: true,
+      type: String,
+      required: false,
+      trim: true,
     },
   },
   {
@@ -48,6 +50,7 @@ const userSchema = new Schema(
 
 userSchema.pre("save", async function (next) {
   try {
+    // Si la contraseña ya estaba encriptada, no la encriptamos de nuevo
     if (this.isModified("password")) {
       const saltRounds = 10;
       const passwordEncrypted = await bcrypt.hash(this.password, saltRounds);
